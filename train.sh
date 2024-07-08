@@ -2,11 +2,13 @@
 
 cd linevul
 python linevul_main.py \
-	--output_dir=./saved_models \
+	--model_name=data_v2_finetuned_linevul.bin \
+	--output_dir=./finetuned_models \
+	--finetune_base_model=./saved_models/checkpoint-best-f1/12heads_linevul_model.bin \
 	--model_type=roberta \
 	--tokenizer_name=microsoft/codebert-base \
 	--model_name_or_path=microsoft/codebert-base \
-	--do_train \
+	--do_finetune \
 	--train_data_file=../../llm-based-vulnerability-synthesis/data/processed/codellama/data_gen_v2.csv \
 	--eval_data_file=../../llm-based-vulnerability-synthesis/data/processed/codellama/data_gen_v2.csv \
 	--epochs 10 \
@@ -18,3 +20,4 @@ python linevul_main.py \
 	--evaluate_during_training \
 	--seed 123456  2>&1 | tee train.log
 
+# 

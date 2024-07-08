@@ -64,6 +64,8 @@ class TextDataset(Dataset):
             file_path = args.test_data_file
         self.examples = []
         df = pd.read_csv(file_path)
+        # For testing purposes: Only retain 5 rows
+        # df = df.head()
         funcs = df["processed_func"].tolist()
         labels = df["target"].tolist()
         for i in tqdm(range(len(funcs))):
@@ -1135,6 +1137,8 @@ def main():
                         help="Saved model name.")
     parser.add_argument("--model_name_or_path", default=None, type=str,
                         help="The model checkpoint for weights initialization.")
+    parser.add_argument("--finetune_base_model", default=None, type=str,
+                        help="Relative path to .bin file containing the checkpoint containing the pretrained model weights")
     parser.add_argument("--config_name", default="", type=str,
                         help="Optional pretrained config name or path if not the same as model_name_or_path")
     parser.add_argument("--use_non_pretrained_model", action='store_true', default=False,
@@ -1150,6 +1154,8 @@ def main():
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_test", action='store_true',
                         help="Whether to run eval on the dev set.")
+    parser.add_argument("--do_finetune", action="store_true",
+                        help="Whether to run fine-tuning")
 
     parser.add_argument("--evaluate_during_training", action='store_true',
                         help="Run evaluation during training at each logging step.")
@@ -1237,6 +1243,20 @@ def main():
     logger.info("Training/evaluation parameters %s", args)
     # Training
     if args.do_train:
+        train_dataset = TextDataset(tokenizer, args, file_type='train')
+        eval_dataset = TextDataset(tokenizer, args, file_type='eval')
+        train(args, train_dataset, model, tokenizer, eval_dataset)
+    # Fine-Tuning
+    if args.do_finetune:
+
+        if args.finetune_base_model is None:
+            logger.info("Must specify base model for finetuning!")
+            return
+
+        model.load_state_dict(torch.load(args.finetune_base_model, map_location=args.device), strict=False)
+        model.to(args.device)
+
+        # Start training after initializing datasets
         train_dataset = TextDataset(tokenizer, args, file_type='train')
         eval_dataset = TextDataset(tokenizer, args, file_type='eval')
         train(args, train_dataset, model, tokenizer, eval_dataset)

@@ -277,7 +277,8 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     model.eval()
     logits=[]  
     y_trues=[]
-    for batch in test_dataloader:
+    for i, batch in enumerate(test_dataloader):
+        print(f"Batch {i}/{len(test_dataloader)}")
         (inputs_ids, labels) = [x.to(args.device) for x in batch]
         with torch.no_grad():
             lm_loss, logit = model(input_ids=inputs_ids, labels=labels)
@@ -1207,8 +1208,9 @@ def main():
     parser.add_argument("--use_non_pretrained_tokenizer", default=False, action='store_true',
                         help="Whether to use non-pretrained bpe tokenizer.")
     args = parser.parse_args()
-    # Setup CUDA, GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Setup MPS
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     args.n_gpu = torch.cuda.device_count()
     args.device = device
     # Setup logging

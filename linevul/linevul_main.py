@@ -1214,9 +1214,11 @@ def main():
     parser.add_argument("--use_non_pretrained_tokenizer", default=False, action='store_true',
                         help="Whether to use non-pretrained bpe tokenizer.")
     args = parser.parse_args()
-    # Setup MPS
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    # Setup Device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Try to set up MPS if cuda is not available
+    if device == torch.device("cpu"):
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     args.n_gpu = torch.cuda.device_count()
     args.device = device
     # Setup logging

@@ -53,6 +53,19 @@ class InputFeatures(object):
         self.input_ids = input_ids
         self.label=label
         
+def collect_examples_from_csv(file_path: str,
+                              examples,
+                              tokenizer,
+                              args) -> None:
+    """
+    Extracts examples from a CSV and adds them to a given list.
+    """
+    df = pd.read_csv(file_path)
+    funcs = df["processed_func"].tolist()
+    labels = df["target"].tolist()
+    for i in tqdm(range(len(funcs))):
+        examples.append(convert_examples_to_features(funcs[i], labels[i], tokenizer, args))
+
 
 class TextDataset(Dataset):
     def __init__(self, tokenizer, args, file_type="train"):
@@ -63,14 +76,24 @@ class TextDataset(Dataset):
         elif file_type == "test":
             file_path = args.test_data_file
         self.examples = []
-        df = pd.read_csv(file_path)
-        # For testing purposes: Only retain 5 rows
-        # df = df.head()
-        funcs = df["processed_func"].tolist()
-        labels = df["target"].tolist()
-        for i in tqdm(range(len(funcs))):
-            self.examples.append(convert_examples_to_features(funcs[i], labels[i], tokenizer, args))
+        collect_examples_from_csv(file_path=file_path,
+                                  examples=self.examples,
+                                  tokenizer=tokenizer,
+                                  args=args)
         if file_type == "train":
+
+            # Add samples to augment the training set, if any were given
+            if args.aug_vuln_data_file is not None:
+                collect_examples_from_csv(file_path=args.aug_vuln_data_file,
+                                          examples=self.examples,
+                                          tokenizer=tokenizer,
+                                          args=args)
+            if args.aug_nonvuln_data_file is not None:
+                collect_examples_from_csv(file_path=args.aug_nonvuln_data_file,
+                                          examples=self.examples,
+                                          tokenizer=tokenizer,
+                                          args=args)
+
             for example in self.examples[:3]:
                     logger.info("*** Example ***")
                     logger.info("label: {}".format(example.label))
@@ -1137,8 +1160,6 @@ def main():
                         help="Saved model name.")
     parser.add_argument("--model_name_or_path", default=None, type=str,
                         help="The model checkpoint for weights initialization.")
-    parser.add_argument("--finetune_base_model", default=None, type=str,
-                        help="Relative path to .bin file containing the checkpoint containing the pretrained model weights")
     parser.add_argument("--config_name", default="", type=str,
                         help="Optional pretrained config name or path if not the same as model_name_or_path")
     parser.add_argument("--use_non_pretrained_model", action='store_true', default=False,
@@ -1154,8 +1175,6 @@ def main():
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_test", action='store_true',
                         help="Whether to run eval on the dev set.")
-    parser.add_argument("--do_finetune", action="store_true",
-                        help="Whether to run fine-tuning")
 
     parser.add_argument("--evaluate_during_training", action='store_true',
                         help="Run evaluation during training at each logging step.")
@@ -1213,6 +1232,18 @@ def main():
     # bpe non-pretrained tokenizer
     parser.add_argument("--use_non_pretrained_tokenizer", default=False, action='store_true',
                         help="Whether to use non-pretrained bpe tokenizer.")
+    
+    # ADDITIONAL ARGUMENTS FOR AVS
+    parser.add_argument("--finetune_base_model", default=None, type=str,
+                        help="Relative path to .bin file containing the checkpoint containing the pretrained model weights")
+    parser.add_argument("--do_finetune", action="store_true",
+                        help="Whether to run fine-tuning")
+
+    parser.add_argument("--aug_vuln_data_file", default=None, type=str, required=False,
+                        help="The input data file for augmenting the training data with vulnerable samples (a csv file).")
+    parser.add_argument("--aug_nonvuln_data_file", default=None, type=str, required=False,
+                        help="The input data file for augmenting the training data with non-vulnerable samples (a csv file).")
+
     args = parser.parse_args()
     # Setup Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

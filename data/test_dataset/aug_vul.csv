@@ -1,0 +1,2 @@
+index,processed_func,target
+0,"void vulnerable_function(int* numbers)",1

@@ -1,0 +1,4 @@
+index,processed_func,target
+0,"int main()",0
+1,"int add(int a, int b)",1
+2,"int sub(float a, float b)",0

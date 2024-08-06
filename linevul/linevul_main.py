@@ -1157,9 +1157,9 @@ def main():
     parser.add_argument("--test_data_file", default=None, type=str,
                         help="An optional input evaluation data file to evaluate the perplexity on (a text file).")
     parser.add_argument("--model_name", default="model.bin", type=str,
-                        help="Saved model name.")
+                        help="Saved model name.") # OUTPUT model
     parser.add_argument("--model_name_or_path", default=None, type=str,
-                        help="The model checkpoint for weights initialization.")
+                        help="The model checkpoint for weights initialization.") # INPUT model, used for weight initialization
     parser.add_argument("--config_name", default="", type=str,
                         help="Optional pretrained config name or path if not the same as model_name_or_path")
     parser.add_argument("--use_non_pretrained_model", action='store_true', default=False,
@@ -1246,10 +1246,12 @@ def main():
 
     args = parser.parse_args()
     # Setup Device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # Try to set up MPS if cuda is not available
-    if device == torch.device("cpu"):
-        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
     args.n_gpu = torch.cuda.device_count()
     args.device = device
     # Setup logging

@@ -5,7 +5,7 @@
 #SBATCH --mail-user=dominik.plath@tuhh.de
 #SBATCH --time 6-23:00:00
 
-#SBATCH --gres gpu:4
+#SBATCH --gres gpu:1
 #SBATCH --mem-per-gpu 75000
 #SBATCH --output output/batch_size_test.log
 
@@ -13,17 +13,17 @@
 module load anaconda/2023.07-1
 conda activate vuln-synth
 
-nproc_per_node=4
+nproc_per_node=1
 batch_sizes=(16 32 64 128)
 
 cd linevul
 
 for batch_size in ${batch_sizes[@]}
 do
-	echo \*\* Testing Batch Size $bsz \*\*
+	echo \*\* Testing Batch Size $batch_size \*\*
 	echo
 
-	echo torchrun --nproc_per_node $nproc_per_node linevul_main.py \
+	torchrun --nproc_per_node $nproc_per_node linevul_main.py \
 	  --output_dir=./saved_models \
 	  --model_type=roberta \
 	  --tokenizer_name=microsoft/codebert-base \

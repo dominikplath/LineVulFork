@@ -303,7 +303,8 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     logits=[]  
     y_trues=[]
     for i, batch in enumerate(test_dataloader):
-        print(f"Batch {i}/{len(test_dataloader)}")
+        if i % 50 == 0:
+            print(f"Batch {i}/{len(test_dataloader)}")
         (inputs_ids, labels) = [x.to(args.device) for x in batch]
         with torch.no_grad():
             lm_loss, logit = model(input_ids=inputs_ids, labels=labels)
@@ -327,7 +328,10 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         "test_threshold":best_threshold,
     }
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name="LineVul")
-    plt.savefig(f'test_precision_recall_{args.model_name}.pdf')
+    # TODO Remove comment when 
+    # ImportError: cannot import name 'subset' from 'fontTools' (unknown location)
+    # is fixed on M2
+    # plt.savefig(f'test_precision_recall_{args.model_name}.pdf')
 
     logger.info("***** Test results *****")
     for key in sorted(result.keys()):

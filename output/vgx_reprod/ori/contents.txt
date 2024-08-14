@@ -1,0 +1,5 @@
+test_ori_linevul.log: Evaluation of the model uploaded by the LineVul authors on the ReVeal dataset
+test_ori_vgx.log: Evaluation of the model provided by the VGX authors on the ReVeal dataset (matches the results reported in VGX paper)
+ori_reprod.log: Training on the original training split of the Big-Vul dataset for 10 epochs, trying to reproduce the LineVul-ori F1 score, but only getting arount 0.039
+ori_reprod_full.log: Training on the original FULL Big-Vul dataset for 10 epochs, trying to get the reported LineVul-ori F1 score
+

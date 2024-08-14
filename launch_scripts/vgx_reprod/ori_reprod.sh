@@ -1,31 +1,37 @@
 #!/bin/bash -l
 #SBATCH --ntasks 1
-#SBATCH --cpus-per-task 1
+#SBATCH --cpus-per-task 2
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dominik.plath@tuhh.de
 
 #SBATCH --time 5-23:00:00
-#SBATCH --gres gpu:1
-#SBATCH --mem-per-gpu 40000
-#SBATCH --output output/cuda_fix.txt
+#SBATCH --gres gpu:4
+#SBATCH --mem-per-gpu 75000
+#SBATCH --output output/vgx_reprod/ori_reprod_full.log
 
 # Load anaconda
 module load anaconda/2023.07-1
 conda activate vuln-synth
 
-nproc_per_node=1
+nproc_per_node=4
+train_data_file=../data/big-vul_dataset/processed_data.csv
+test_data_file=../data/vgx/test.csv
+
+echo "Trying to reproduce the F1 score reported in the VGX Paper for LineVul-ori using the whole BigVul dataset for training"
 
 cd linevul
 python linevul_main.py \
+	--model_name=model_ori_reprod_full.bin \
 	--output_dir=./saved_models \
 	--model_type=roberta \
 	--tokenizer_name=microsoft/codebert-base \
 	--model_name_or_path=microsoft/codebert-base \
 	--do_train \
+	--do_eval \
 	--do_test \
-	--train_data_file=../data/big-vul_dataset/train.csv \
-	--eval_data_file=../data/big-vul_dataset/val.csv \
-	--test_data_file=../data/big-vul_dataset/test.csv \
+	--train_data_file=$train_data_file \
+	--eval_data_file=$test_data_file \
+	--test_data_file=$test_data_file \
 	--epochs 10 \
 	--block_size 512 \
 	--train_batch_size 16 \

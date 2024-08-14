@@ -83,16 +83,12 @@ class TextDataset(Dataset):
         if file_type == "train":
 
             # Add samples to augment the training set, if any were given
-            if args.aug_vuln_data_file is not None:
-                collect_examples_from_csv(file_path=args.aug_vuln_data_file,
-                                          examples=self.examples,
-                                          tokenizer=tokenizer,
-                                          args=args)
-            if args.aug_nonvuln_data_file is not None:
-                collect_examples_from_csv(file_path=args.aug_nonvuln_data_file,
-                                          examples=self.examples,
-                                          tokenizer=tokenizer,
-                                          args=args)
+            if args.aug_train_data_files is not None:
+                for aug_train_file in args.aug_train_data_files:
+                    collect_examples_from_csv(file_path=aug_train_file,
+                                              examples=self.examples,
+                                              tokenizer=tokenizer,
+                                              args=args)
 
             for example in self.examples[:3]:
                     logger.info("*** Example ***")
@@ -1243,10 +1239,8 @@ def main():
     parser.add_argument("--do_finetune", action="store_true",
                         help="Whether to run fine-tuning")
 
-    parser.add_argument("--aug_vuln_data_file", default=None, type=str, required=False,
-                        help="The input data file for augmenting the training data with vulnerable samples (a csv file).")
-    parser.add_argument("--aug_nonvuln_data_file", default=None, type=str, required=False,
-                        help="The input data file for augmenting the training data with non-vulnerable samples (a csv file).")
+    parser.add_argument("--aug_train_data_files", default=None, type=str, nargs="*", required=False,
+                        help="Input data files for augmenting the training data with vulnerable samples (CSV files).")
 
     args = parser.parse_args()
     # Setup Device

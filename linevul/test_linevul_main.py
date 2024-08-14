@@ -16,14 +16,14 @@ class TestTextDataset(unittest.TestCase):
     def test_constructor_collects_augmented_samples(self, mocked_logger_info):
         tokenizer = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
         args = Namespace(train_data_file=os.path.join("..", "data", "test_dataset", "train.csv"),
-                         aug_vuln_data_file=os.path.join("..", "data", "test_dataset", "aug_vul.csv"),
-                         aug_nonvuln_data_file=os.path.join("..", "data", "test_dataset", "aug_nonvul.csv"),
+                         aug_train_data_files=[os.path.join("..", "data", "test_dataset", "aug_vul.csv"),
+                                               os.path.join("..", "data", "test_dataset", "aug_nonvul.csv")],
                          use_word_level_tokenizer=False,
                          block_size=512)
 
         train_dataset = TextDataset(tokenizer=tokenizer,
-                    args=args,
-                    file_type="train")
+                                    args=args,
+                                    file_type="train")
 
         print_logged_strings(mocked_logger_info)
 

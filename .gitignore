@@ -4,4 +4,6 @@ __pycache__/
 *.bin
 *.pdf
 data/big-vul_dataset
+data/vgx/wild_funcs_gen_linevul/
+data/vgx/wild_funcs_gen_linevul.csv
 

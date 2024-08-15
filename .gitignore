@@ -6,4 +6,6 @@ __pycache__/
 data/big-vul_dataset
 data/vgx/wild_funcs_gen_linevul/
 data/vgx/wild_funcs_gen_linevul.csv
+data/vgx/wild_funcs_neg.csv
+data/vgx/wild_funcs_pos.csv
 

@@ -5,8 +5,8 @@
 #SBATCH --mail-user=dominik.plath@tuhh.de
 
 #SBATCH --time 5-23:00:00
-# #SBATCH --gres gpu:2
-# #SBATCH --mem-per-gpu 75000
+#SBATCH --gres gpu:2
+#SBATCH --mem-per-gpu 75000
 #SBATCH --output output/aug-codellama-34b/vgx-based_nonvuln.log
 
 # Load anaconda
@@ -27,7 +27,7 @@ cat launch_scripts/aug-codellama-34b/vgx-based_nonvuln.sh
 echo "===================================================================="
 
 cd linevul
-echo python linevul_main.py \
+python linevul_main.py \
 	--model_name=$model_name \
 	--output_dir=./saved_models \
 	--model_type=roberta \

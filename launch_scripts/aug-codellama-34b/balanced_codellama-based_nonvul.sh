@@ -5,7 +5,7 @@
 #SBATCH --mail-user=dominik.plath@tuhh.de
 
 #SBATCH --time 5-23:00:00
-#SBATCH --gres gpu:h100:4
+#SBATCH --gres gpu:h100:2
 #SBATCH --mem-per-gpu 75000
 # TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
 #SBATCH --output output/aug-codellama-34b/balanced_codellama-based_nonvul.log
@@ -20,7 +20,7 @@ aug_train_data_files='
 ../../llm-based-vulnerability-synthesis/data/enhanced/codellama-34b/proc_and_label_only/15038_sized/15038_data_gen_v2.csv 
 ../../llm-based-vulnerability-synthesis/data/enhanced/codellama-34b/proc_and_label_only/15038_sized/15038_data_gen_non_vulnerable.csv'
 # TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
-model_name=aug-codellama-34b/balanced_codellama-based_nonvul.bin
+model_name=aug-codellama-34b_balanced_codellama-based_nonvul.bin
 
 echo "Using a balanced dataset generated with CodeLlama-34b to fine-tune LineVul"
 

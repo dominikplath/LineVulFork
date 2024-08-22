@@ -5,7 +5,7 @@
 #SBATCH --mail-user=dominik.plath@tuhh.de
 
 #SBATCH --time 5-23:00:00
-#SBATCH --gres gpu:h100:4
+#SBATCH --gres gpu:h100:2
 #SBATCH --mem-per-gpu 75000
 # TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
 #SBATCH --output output/aug-codellama-34b/vgx-based_nonvuln_clean_15038.log
@@ -17,10 +17,10 @@ conda activate vuln-synth
 train_data_file=../data/big-vul_dataset/processed_data.csv
 test_data_file=../data/vgx/test.csv
 aug_train_data_files='
-../../llm-based-vulnerability-synthesis/data/enhanced/codellama-34b/proc_and_label_only/15038_data_gen_v2.csv 
+../../llm-based-vulnerability-synthesis/data/enhanced/codellama-34b/proc_and_label_only/15038_sized/15038_data_gen_v2.csv
 ../data/vgx/wild_funcs_neg.csv'
 # TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
-model_name=aug-codellama-34b/vgx-based_nonvuln_clean_15038.bin
+model_name=aug-codellama-34b_vgx-based_nonvuln_clean_15038.bin
 
 echo "Using positive samples from CodeLlama-34b and negative samples from VGX to fine-tune LineVul"
 

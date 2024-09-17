@@ -1,7 +1,7 @@
 log_file_path=../output/linevul_reprod/reprod_rq1.log 
 
 cd linevul
-python linevul_main.py \
+python -u linevul_main.py \
   --model_name=12heads_linevul_model.bin \
   --output_dir=./saved_models \
   --model_type=roberta \

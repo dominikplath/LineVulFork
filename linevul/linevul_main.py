@@ -33,7 +33,7 @@ import multiprocessing
 from linevul_model import Model
 import pandas as pd
 # metrics
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, PrecisionRecallDisplay
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, PrecisionRecallDisplay, average_precision_score, roc_auc_score
 from sklearn.metrics import auc
 import matplotlib.pyplot as plt
 # model reasoning
@@ -261,14 +261,20 @@ def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
     best_threshold = 0.5
     best_f1 = 0
     y_preds = logits[:,1]>best_threshold
+    acc = accuracy_score(y_trues, y_preds)
     recall = recall_score(y_trues, y_preds)
     precision = precision_score(y_trues, y_preds)   
     f1 = f1_score(y_trues, y_preds)             
+    roc_auc = roc_auc_score(y_trues, logits[:, 1])
+    ap = average_precision_score(y_trues, logits[:, 1])
     result = {
+        "eval_accuracy": float(acc),
         "eval_recall": float(recall),
         "eval_precision": float(precision),
         "eval_f1": float(f1),
         "eval_threshold":best_threshold,
+        "eval_roc_auc":roc_auc,
+        "eval_ap":ap
     }
 
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name='LineVul')
@@ -316,18 +322,19 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     recall = recall_score(y_trues, y_preds)
     precision = precision_score(y_trues, y_preds)   
     f1 = f1_score(y_trues, y_preds)             
+    roc_auc = roc_auc_score(y_trues, logits[:, 1])
+    ap = average_precision_score(y_trues, logits[:, 1])
     result = {
         "test_accuracy": float(acc),
         "test_recall": float(recall),
         "test_precision": float(precision),
         "test_f1": float(f1),
         "test_threshold":best_threshold,
+        "test_roc_auc":roc_auc,
+        "test_ap":ap
     }
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name="LineVul")
-    # TODO Remove comment when 
-    # ImportError: cannot import name 'subset' from 'fontTools' (unknown location)
-    # is fixed on M2
-    # plt.savefig(f'test_precision_recall_{args.model_name}.pdf')
+    plt.savefig(f'test_precision_recall_{args.model_name}.pdf')
 
     logger.info("***** Test results *****")
     for key in sorted(result.keys()):

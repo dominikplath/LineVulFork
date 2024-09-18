@@ -1,0 +1,262 @@
+Using positive samples from GPT-4o and negative samples from VGX to fine-tune LineVul
+========================= LAUNCH SCRIPT: ===========================
+#!/bin/bash -l
+#SBATCH --ntasks 1
+#SBATCH --cpus-per-task 2
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=dominik.plath@tuhh.de
+
+#SBATCH --time 5-23:00:00
+#SBATCH --gres gpu:2
+#SBATCH --mem-per-gpu 75000
+# TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
+#SBATCH --output output/aug-gpt-4o/vgx-based_nonvuln_clean_15039.log
+
+# Load anaconda
+module load anaconda/2023.07-1
+conda activate vuln-synth
+
+train_data_file=../data/big-vul_dataset/processed_data.csv
+test_data_file=../data/vgx/test.csv
+aug_train_data_files='
+../../llm-based-vulnerability-synthesis/data/enhanced/gpt-4o/security-extended_enhancement/15039_gpt-4o_vuln.csv
+../data/vgx/wild_funcs_neg.csv'
+# TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
+model_name=aug-gpt-4o_vgx-based_nonvuln_clean_15039.bin
+
+echo "Using positive samples from GPT-4o and negative samples from VGX to fine-tune LineVul"
+
+echo "========================= LAUNCH SCRIPT: ==========================="
+# TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT
+cat launch_scripts/aug-gpt-4o/vgx-based_nonvuln_clean_15039.sh
+echo "===================================================================="
+
+cd linevul
+python linevul_main.py \
+	--model_name=$model_name \
+	--output_dir=./saved_models \
+	--model_type=roberta \
+	--tokenizer_name=microsoft/codebert-base \
+	--model_name_or_path=microsoft/codebert-base \
+	--do_train \
+	--do_eval \
+	--do_test \
+	--train_data_file=$train_data_file \
+	--eval_data_file=$test_data_file \
+	--test_data_file=$test_data_file \
+	--aug_train_data_files $aug_train_data_files \
+	--epochs 10 \
+	--block_size 512 \
+	--train_batch_size 16 \
+	--eval_batch_size 16 \
+	--learning_rate 2e-5 \
+	--max_grad_norm 1.0 \
+	--evaluate_during_training \
+	--seed 123456  2>&1
+
+====================================================================
+09/17/2024 16:31:37 - WARNING - __main__ -   device: cuda, n_gpu: 2
+Some weights of RobertaForSequenceClassification were not initialized from the model checkpoint at microsoft/codebert-base and are newly initialized: ['classifier.dense.bias', 'classifier.dense.weight', 'classifier.out_proj.bias', 'classifier.out_proj.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+09/17/2024 16:31:40 - INFO - __main__ -   Training/evaluation parameters Namespace(train_data_file='../data/big-vul_dataset/processed_data.csv', output_dir='./saved_models', model_type='roberta', block_size=512, eval_data_file='../data/vgx/test.csv', test_data_file='../data/vgx/test.csv', model_name='aug-gpt-4o_vgx-based_nonvuln_clean_15039.bin', model_name_or_path='microsoft/codebert-base', config_name='', use_non_pretrained_model=False, tokenizer_name='microsoft/codebert-base', code_length=256, do_train=True, do_eval=True, do_test=True, evaluate_during_training=True, do_local_explanation=False, reasoning_method=None, train_batch_size=16, eval_batch_size=16, gradient_accumulation_steps=1, learning_rate=2e-05, weight_decay=0.0, adam_epsilon=1e-08, max_grad_norm=1.0, max_steps=-1, warmup_steps=0, seed=123456, epochs=10, effort_at_top_k=0.2, top_k_recall_by_lines=0.01, top_k_recall_by_pred_prob=0.2, do_sorting_by_line_scores=False, do_sorting_by_pred_prob=False, top_k_constant=10, num_attention_heads=12, write_raw_preds=False, use_word_level_tokenizer=False, use_non_pretrained_tokenizer=False, finetune_base_model=None, do_finetune=False, aug_train_data_files=['../../llm-based-vulnerability-synthesis/data/enhanced/gpt-4o/security-extended_enhancement/15039_gpt-4o_vuln.csv', '../data/vgx/wild_funcs_neg.csv'], n_gpu=2, device='cuda')
+/work/cps/cbs5650/ma/LineVulFork/linevul/linevul_main.py:63: DtypeWarning: Columns (1,20,22,23,27,28,29,37,38) have mixed types. Specify dtype option on import or set low_memory=False.
+  df = pd.read_csv(file_path)
+09/17/2024 16:40:59 - INFO - __main__ -   *** Example ***
+09/17/2024 16:40:59 - INFO - __main__ -   label: 0
+09/17/2024 16:40:59 - INFO - __main__ -   input_tokens: ['<s>', 'static', '_bool', '_check', '_', 'rod', 'c', '_', 'critical', '_', 'attribute', '(', 'struct', '_l', 'db', '_', 'message', '_*', 'msg', ')', 'Ċ', '{', 'Ċ', 'ĉ', 'uint', '32', '_', 't', '_schema', 'Flags', 'Ex', ',', '_search', 'Flags', ',', '_rod', 'c', '_', 'fil', 'tered', '_', 'flags', ';', 'ĊĊ', 'ĉ', 'sche', 'ma', 'Flags', 'Ex', '_=', '_l', 'db', '_', 'msg', '_', 'find', '_', 'attr', '_', 'as', '_', 'uint', '(', 'msg', ',', '_"', 'sche', 'ma', 'Flags', 'Ex', '",', '_0', ');', 'Ċ', 'ĉ', 'search', 'Flags', '_=', '_l', 'db', '_', 'msg', '_', 'find', '_', 'attr', '_', 'as', '_', 'uint', '(', 'msg', ',', '_"', 'search', 'Flags', '",', '_0', ');', 'Ċ', 'ĉ', 'rod', 'c', '_', 'fil', 'tered', '_', 'flags', '_=', '_(', 'SE', 'ARCH', '_', 'FLAG', '_', 'R', 'OD', 'C', '_', 'AT', 'TR', 'IB', 'UTE', 'Ċ', 'ĉ', 'ĉ', 'ĉ', '_', '_', '_', '_', '_', '_|', '_SE', 'ARCH', '_', 'FLAG', '_', 'CON', 'F', 'IDENT', 'IAL', ');', 'ĊĊ', 'ĉ', 'if', '_((', 'sche', 'ma', 'Flags', 'Ex', '_&', '_SCH', 'EMA', '_', 'FLAG', '_', 'AT', 'TR', '_', 'IS', '_', 'CR', 'IT', 'ICAL', ')', '_&&', 'Ċ', 'ĉ', 'ĉ', '((', 'search', 'Flags', '_&', '_rod', 'c', '_', 'fil', 'tered', '_', 'flags', ')', '_==', '_rod', 'c', '_', 'fil', 'tered', '_', 'flags', '))', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_true', ';', 'Ċ', 'ĉ', '}', '_else', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_false', ';', 'Ċ', 'ĉ', '}', 'Ċ', '}', 'Ċ', '</s>']
+09/17/2024 16:40:59 - INFO - __main__ -   input_ids: 0 42653 49460 1649 1215 10774 438 1215 25398 1215 49202 1640 25384 784 33845 1215 44773 1009 48593 43 50118 45152 50118 50117 47157 2881 1215 90 47404 48167 9089 6 1707 48167 6 21966 438 1215 18419 10001 1215 46760 131 50140 50117 25383 1916 48167 9089 5457 784 33845 1215 48593 1215 26559 1215 44156 1215 281 1215 47157 1640 48593 6 22 25383 1916 48167 9089 1297 321 4397 50118 50117 21061 48167 5457 784 33845 1215 48593 1215 26559 1215 44156 1215 281 1215 47157 1640 48593 6 22 21061 48167 1297 321 4397 50118 50117 10774 438 1215 18419 10001 1215 46760 5457 36 3388 42499 1215 46435 1215 500 7111 347 1215 2571 6997 8863 38300 50118 50117 50117 50117 1437 1437 1437 1437 1437 1721 6324 42499 1215 46435 1215 15299 597 29877 11694 4397 50140 50117 1594 41006 25383 1916 48167 9089 359 26744 26674 1215 46435 1215 2571 6997 1215 1729 1215 9822 2068 24308 43 48200 50118 50117 50117 48461 21061 48167 359 21966 438 1215 18419 10001 1215 46760 43 45994 21966 438 1215 18419 10001 1215 46760 35122 25522 50118 50117 50117 30921 1528 131 50118 50117 24303 1493 25522 50118 50117 50117 30921 3950 131 50118 50117 24303 50118 24303 50118 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+09/17/2024 16:40:59 - INFO - __main__ -   *** Example ***
+09/17/2024 16:40:59 - INFO - __main__ -   label: 0
+09/17/2024 16:40:59 - INFO - __main__ -   input_tokens: ['<s>', 'static', '_int', '_sam', 'ld', 'b', '_', 'add', '_', 'entry', '(', 'struct', '_sam', 'ld', 'b', '_', 'ctx', '_*', 'ac', ')', 'Ċ', '{', 'Ċ', 'ĉ', 'struct', '_l', 'db', '_', 'context', '_*', 'ld', 'b', ';', 'Ċ', 'ĉ', 'struct', '_l', 'db', '_', 'request', '_*', 'req', ';', 'Ċ', 'ĉ', 'int', '_ret', ';', 'ĊĊ', 'ĉ', 'ld', 'b', '_=', '_l', 'db', '_', 'module', '_', 'get', '_', 'ctx', '(', 'ac', '->', 'module', ');', 'ĊĊ', 'ĉ', 'ret', '_=', '_l', 'db', '_', 'build', '_', 'add', '_', 'req', '(&', 'req', ',', '_l', 'db', ',', '_ac', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ac', '->', 'msg', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ac', '->', 'req', '->', 'control', 's', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ac', ',', '_sam', 'ld', 'b', '_', 'add', '_', 'entry', '_', 'callback', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ac', '->', 'req', ');', 'Ċ', 'ĉ', 'L', 'DB', '_', 'RE', 'Q', '_', 'SET', '_', 'LOC', 'ATION', '(', 'req', ');', 'Ċ', 'ĉ', 'if', '_(', 'ret', '_!=', '_L', 'DB', '_', 'SU', 'CC', 'ESS', ')', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_ret', ';', 'Ċ', 'ĉ', '}', 'ĊĊ', 'ĉ', 'return', '_l', 'db', '_', 'next', '_', 'request', '(', 'ac', '->', 'module', ',', '_req', ');', 'Ċ', '}', 'Ċ', '</s>']
+09/17/2024 16:40:59 - INFO - __main__ -   input_ids: 0 42653 6979 13049 4779 428 1215 4917 1215 12595 1640 25384 13049 4779 428 1215 49575 1009 1043 43 50118 45152 50118 50117 25384 784 33845 1215 46796 1009 4779 428 131 50118 50117 25384 784 33845 1215 16604 1009 47278 131 50118 50117 2544 5494 131 50140 50117 4779 428 5457 784 33845 1215 48095 1215 6460 1215 49575 1640 1043 46613 48095 4397 50140 50117 4903 5457 784 33845 1215 23411 1215 4917 1215 47278 49763 47278 6 784 33845 6 4285 6 50118 50117 50117 50117 50117 1043 46613 48593 6 50118 50117 50117 50117 50117 1043 46613 47278 46613 17665 29 6 50118 50117 50117 50117 50117 1043 6 13049 4779 428 1215 4917 1215 12595 1215 49499 6 50118 50117 50117 50117 50117 1043 46613 47278 4397 50118 50117 574 10842 1215 4629 1864 1215 45099 1215 45002 6034 1640 47278 4397 50118 50117 1594 36 4903 49333 226 10842 1215 10466 3376 12147 43 25522 50118 50117 50117 30921 5494 131 50118 50117 24303 50140 50117 30921 784 33845 1215 25616 1215 16604 1640 1043 46613 48095 6 48829 4397 50118 24303 50118 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+09/17/2024 16:40:59 - INFO - __main__ -   *** Example ***
+09/17/2024 16:40:59 - INFO - __main__ -   label: 0
+09/17/2024 16:40:59 - INFO - __main__ -   input_tokens: ['<s>', 'static', '_int', '_sam', 'ld', 'b', '_', 'add', '_', 'entry', '_', 'callback', '(', 'struct', '_l', 'db', '_', 'request', '_*', 'req', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'struct', '_l', 'db', '_', 'reply', '_*', 'ares', ')', 'Ċ', '{', 'Ċ', 'ĉ', 'struct', '_l', 'db', '_', 'context', '_*', 'ld', 'b', ';', 'Ċ', 'ĉ', 'struct', '_sam', 'ld', 'b', '_', 'ctx', '_*', 'ac', ';', 'Ċ', 'ĉ', 'int', '_ret', ';', 'ĊĊ', 'ĉ', 'ac', '_=', '_tall', 'oc', '_', 'get', '_', 'type', '(', 'req', '->', 'context', ',', '_struct', '_sam', 'ld', 'b', '_', 'ctx', ');', 'Ċ', 'ĉ', 'ld', 'b', '_=', '_l', 'db', '_', 'module', '_', 'get', '_', 'ctx', '(', 'ac', '->', 'module', ');', 'ĊĊ', 'ĉ', 'if', '_(!', 'ares', ')', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_l', 'db', '_', 'module', '_', 'done', '(', 'ac', '->', 'req', ',', '_NULL', ',', '_NULL', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'L', 'DB', '_', 'ER', 'R', '_', 'OPER', 'ATIONS', '_', 'ERROR', ');', 'Ċ', 'ĉ', '}', 'ĊĊ', 'ĉ', 'if', '_(', 'ares', '->', 'type', '_==', '_L', 'DB', '_', 'RE', 'PL', 'Y', '_', 'RE', 'FER', 'RAL', ')', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_l', 'db', '_', 'module', '_', 'send', '_', 're', 'fer', 'ral', '(', 'ac', '->', 'req', ',', '_are', 's', '->', 're', 'fer', 'ral', ');', 'Ċ', 'ĉ', '}', 'ĊĊ', 'ĉ', 'if', '_(', 'ares', '->', 'error', '_!=', '_L', 'DB', '_', 'SU', 'CC', 'ESS', ')', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_l', 'db', '_', 'module', '_', 'done', '(', 'ac', '->', 'req', ',', '_are', 's', '->', 'control', 's', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ares', '->', 'response', ',', '_are', 's', '->', 'error', ');', 'Ċ', 'ĉ', '}', 'Ċ', 'ĉ', 'if', '_(', 'ares', '->', 'type', '_!=', '_L', 'DB', '_', 'RE', 'PL', 'Y', '_', 'D', 'ONE', ')', '_{', 'Ċ', 'ĉ', 'ĉ', 'ld', 'b', '_', 'as', 'printf', '_', 'err', 'string', '(', 'ld', 'b', ',', '_"', 'Invalid', '_L', 'DB', '_reply', '_type', '_%', 'd', '",', '_are', 's', '->', 'type', ');', 'Ċ', 'ĉ', 'ĉ', 'return', '_l', 'db', '_', 'module', '_', 'done', '(', 'ac', '->', 'req', ',', '_NULL', ',', '_NULL', ',', 'Ċ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'ĉ', 'L', 'DB', '_', 'ER', 'R', '_', 'OPER', 'ATIONS', '_', 'ERROR', ');', 'Ċ', 'ĉ', '}', 'ĊĊ', 'ĉ', '/*', '_The', '_caller', '_may', '_wish', '_to', '_get', '_controls', '_back', '_from', '_the', '_add', '_*/', 'Ċ', 'ĉ', 'ac', '->', 'ares', '_=', '_tall', 'oc', '_', 'st', 'eal', '(', 'ac', ',', '_are', 's', ');', 'ĊĊ', 'ĉ', 'ret', '_=', '_sam', 'ld', 'b', '_', 'next', '_', 'step', '(', 'ac', ');', 'Ċ', 'ĉ', 'if', '_(', 'ret', '_!=', '_L', 'DB', '_', 'SU', 'CC', 'ESS', ')', '_{', 'Ċ', 'ĉ', 'ĉ', 'return', '_l', 'db', '_', 'module', '_', 'done', '(', 'ac', '->', 'req', ',', '_NULL', ',', '_NULL', ',', '_ret', ');', 'Ċ', 'ĉ', '}', 'Ċ', 'ĉ', 'return', '_ret', ';', 'Ċ', '}', 'Ċ', '</s>']
+09/17/2024 16:40:59 - INFO - __main__ -   input_ids: 0 42653 6979 13049 4779 428 1215 4917 1215 12595 1215 49499 1640 25384 784 33845 1215 16604 1009 47278 6 50118 50117 50117 50117 50117 50117 25384 784 33845 1215 48317 1009 5347 43 50118 45152 50118 50117 25384 784 33845 1215 46796 1009 4779 428 131 50118 50117 25384 13049 4779 428 1215 49575 1009 1043 131 50118 50117 2544 5494 131 50140 50117 1043 5457 6764 1975 1215 6460 1215 12528 1640 47278 46613 46796 6 29916 13049 4779 428 1215 49575 4397 50118 50117 4779 428 5457 784 33845 1215 48095 1215 6460 1215 49575 1640 1043 46613 48095 4397 50140 50117 1594 48209 5347 43 25522 50118 50117 50117 30921 784 33845 1215 48095 1215 27057 1640 1043 46613 47278 6 48955 6 48955 6 50118 50117 50117 50117 50117 50117 574 10842 1215 2076 500 1215 35918 14939 1215 46734 4397 50118 50117 24303 50140 50117 1594 36 5347 46613 12528 45994 226 10842 1215 4629 7205 975 1215 4629 19296 22881 43 25522 50118 50117 50117 30921 784 33845 1215 48095 1215 37785 1215 241 6646 7085 1640 1043 46613 47278 6 32 29 46613 241 6646 7085 4397 50118 50117 24303 50140 50117 1594 36 5347 46613 44223 49333 226 10842 1215 10466 3376 12147 43 25522 50118 50117 50117 30921 784 33845 1215 48095 1215 27057 1640 1043 46613 47278 6 32 29 46613 17665 29 6 50118 50117 50117 50117 50117 50117 5347 46613 41510 6 32 29 46613 44223 4397 50118 50117 24303 50118 50117 1594 36 5347 46613 12528 49333 226 10842 1215 4629 7205 975 1215 495 16646 43 25522 50118 50117 50117 4779 428 1215 281 49775 1215 14385 20951 1640 4779 428 6 22 49695 226 10842 10418 1907 7606 417 1297 32 29 46613 12528 4397 50118 50117 50117 30921 784 33845 1215 48095 1215 27057 1640 1043 46613 47278 6 48955 6 48955 6 50118 50117 50117 50117 50117 50117 574 10842 1215 2076 500 1215 35918 14939 1215 46734 4397 50118 50117 24303 50140 50117 49051 20 17017 189 2813 7 120 5656 124 31 5 1606 48404 50118 50117 1043 46613 5347 5457 6764 1975 1215 620 18696 1640 1043 6 32 29 4397 50140 50117 4903 5457 13049 4779 428 1215 25616 1215 13975 1640 1043 4397 50118 50117 1594 36 4903 49333 226 10842 1215 10466 3376 12147 43 25522 50118 50117 50117 30921 784 33845 1215 48095 1215 27057 1640 1043 46613 47278 6 48955 6 48955 6 5494 4397 50118 50117 24303 50118 50117 30921 5494 131 50118 24303 50118 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+09/17/2024 16:41:22 - INFO - __main__ -   ***** Running training *****
+09/17/2024 16:41:22 - INFO - __main__ -     Num examples = 448885
+09/17/2024 16:41:22 - INFO - __main__ -     Num Epochs = 10
+09/17/2024 16:41:22 - INFO - __main__ -     Instantaneous batch size per GPU = 8
+09/17/2024 16:41:22 - INFO - __main__ -     Total train batch size = 16
+09/17/2024 16:41:22 - INFO - __main__ -     Gradient Accumulation steps = 1
+09/17/2024 16:41:22 - INFO - __main__ -     Total optimization steps = 280560
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/17/2024 19:03:31 - INFO - __main__ -     Num examples = 18169
+09/17/2024 19:03:31 - INFO - __main__ -     Batch size = 16
+09/17/2024 19:05:46 - INFO - __main__ -   ***** Eval results *****
+09/17/2024 19:05:46 - INFO - __main__ -     eval_accuracy = 0.9082
+09/17/2024 19:05:46 - INFO - __main__ -     eval_ap = 0.1717
+09/17/2024 19:05:46 - INFO - __main__ -     eval_f1 = 0.0
+09/17/2024 19:05:46 - INFO - __main__ -     eval_precision = 0.0
+09/17/2024 19:05:46 - INFO - __main__ -     eval_recall = 0.0
+09/17/2024 19:05:46 - INFO - __main__ -     eval_roc_auc = 0.6724
+09/17/2024 19:05:46 - INFO - __main__ -     eval_threshold = 0.5
+epoch 0 loss 0.07579: 100%|██████████| 28056/28056 [2:24:24<00:00, 40.77s/it]epoch 0 loss 0.07579: 100%|██████████| 28056/28056 [2:24:24<00:00,  3.24it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/17/2024 21:25:57 - INFO - __main__ -     Num examples = 18169
+09/17/2024 21:25:57 - INFO - __main__ -     Batch size = 16
+09/17/2024 21:28:10 - INFO - __main__ -   ***** Eval results *****
+09/17/2024 21:28:10 - INFO - __main__ -     eval_accuracy = 0.9081
+09/17/2024 21:28:10 - INFO - __main__ -     eval_ap = 0.1907
+09/17/2024 21:28:10 - INFO - __main__ -     eval_f1 = 0.0012
+09/17/2024 21:28:10 - INFO - __main__ -     eval_precision = 0.1429
+09/17/2024 21:28:10 - INFO - __main__ -     eval_recall = 0.0006
+09/17/2024 21:28:10 - INFO - __main__ -     eval_roc_auc = 0.6836
+09/17/2024 21:28:10 - INFO - __main__ -     eval_threshold = 0.5
+09/17/2024 21:28:10 - INFO - __main__ -     ********************
+09/17/2024 21:28:10 - INFO - __main__ -     Best f1:0.0012
+09/17/2024 21:28:10 - INFO - __main__ -     ********************
+09/17/2024 21:28:19 - INFO - __main__ -   Saving model checkpoint to ./saved_models/checkpoint-best-f1/aug-gpt-4o_vgx-based_nonvuln_clean_15039.bin
+epoch 1 loss 0.03017: 100%|██████████| 28056/28056 [2:22:32<00:00, 42.78s/it]epoch 1 loss 0.03017: 100%|██████████| 28056/28056 [2:22:32<00:00,  3.28it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/17/2024 23:48:28 - INFO - __main__ -     Num examples = 18169
+09/17/2024 23:48:28 - INFO - __main__ -     Batch size = 16
+09/17/2024 23:50:40 - INFO - __main__ -   ***** Eval results *****
+09/17/2024 23:50:40 - INFO - __main__ -     eval_accuracy = 0.9082
+09/17/2024 23:50:40 - INFO - __main__ -     eval_ap = 0.1346
+09/17/2024 23:50:40 - INFO - __main__ -     eval_f1 = 0.0
+09/17/2024 23:50:40 - INFO - __main__ -     eval_precision = 0.0
+09/17/2024 23:50:40 - INFO - __main__ -     eval_recall = 0.0
+09/17/2024 23:50:40 - INFO - __main__ -     eval_roc_auc = 0.6256
+09/17/2024 23:50:40 - INFO - __main__ -     eval_threshold = 0.5
+epoch 2 loss 0.02941: 100%|██████████| 28056/28056 [2:22:21<00:00, 39.91s/it]epoch 2 loss 0.02941: 100%|██████████| 28056/28056 [2:22:21<00:00,  3.28it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 02:10:20 - INFO - __main__ -     Num examples = 18169
+09/18/2024 02:10:20 - INFO - __main__ -     Batch size = 16
+09/18/2024 02:12:32 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 02:12:32 - INFO - __main__ -     eval_accuracy = 0.9081
+09/18/2024 02:12:32 - INFO - __main__ -     eval_ap = 0.1503
+09/18/2024 02:12:32 - INFO - __main__ -     eval_f1 = 0.0012
+09/18/2024 02:12:32 - INFO - __main__ -     eval_precision = 0.1429
+09/18/2024 02:12:32 - INFO - __main__ -     eval_recall = 0.0006
+09/18/2024 02:12:32 - INFO - __main__ -     eval_roc_auc = 0.6497
+09/18/2024 02:12:32 - INFO - __main__ -     eval_threshold = 0.5
+epoch 3 loss 0.02632: 100%|██████████| 28056/28056 [2:21:52<00:00, 39.95s/it]epoch 3 loss 0.02632: 100%|██████████| 28056/28056 [2:21:52<00:00,  3.30it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 04:30:54 - INFO - __main__ -     Num examples = 18169
+09/18/2024 04:30:54 - INFO - __main__ -     Batch size = 16
+09/18/2024 04:33:05 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 04:33:05 - INFO - __main__ -     eval_accuracy = 0.9083
+09/18/2024 04:33:05 - INFO - __main__ -     eval_ap = 0.1831
+09/18/2024 04:33:05 - INFO - __main__ -     eval_f1 = 0.0
+09/18/2024 04:33:05 - INFO - __main__ -     eval_precision = 0.0
+09/18/2024 04:33:05 - INFO - __main__ -     eval_recall = 0.0
+09/18/2024 04:33:05 - INFO - __main__ -     eval_roc_auc = 0.6998
+09/18/2024 04:33:05 - INFO - __main__ -     eval_threshold = 0.5
+epoch 4 loss 0.02285: 100%|██████████| 28056/28056 [2:20:32<00:00, 39.72s/it]epoch 4 loss 0.02285: 100%|██████████| 28056/28056 [2:20:32<00:00,  3.33it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 06:51:02 - INFO - __main__ -     Num examples = 18169
+09/18/2024 06:51:02 - INFO - __main__ -     Batch size = 16
+09/18/2024 06:53:08 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 06:53:08 - INFO - __main__ -     eval_accuracy = 0.9083
+09/18/2024 06:53:08 - INFO - __main__ -     eval_ap = 0.1735
+09/18/2024 06:53:08 - INFO - __main__ -     eval_f1 = 0.0024
+09/18/2024 06:53:08 - INFO - __main__ -     eval_precision = 0.3333
+09/18/2024 06:53:08 - INFO - __main__ -     eval_recall = 0.0012
+09/18/2024 06:53:08 - INFO - __main__ -     eval_roc_auc = 0.6799
+09/18/2024 06:53:08 - INFO - __main__ -     eval_threshold = 0.5
+09/18/2024 06:53:08 - INFO - __main__ -     ********************
+09/18/2024 06:53:08 - INFO - __main__ -     Best f1:0.0024
+09/18/2024 06:53:08 - INFO - __main__ -     ********************
+09/18/2024 06:53:17 - INFO - __main__ -   Saving model checkpoint to ./saved_models/checkpoint-best-f1/aug-gpt-4o_vgx-based_nonvuln_clean_15039.bin
+epoch 5 loss 0.01997: 100%|██████████| 28056/28056 [2:20:11<00:00, 40.66s/it]epoch 5 loss 0.01997: 100%|██████████| 28056/28056 [2:20:11<00:00,  3.34it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 09:11:35 - INFO - __main__ -     Num examples = 18169
+09/18/2024 09:11:35 - INFO - __main__ -     Batch size = 16
+09/18/2024 09:13:46 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 09:13:46 - INFO - __main__ -     eval_accuracy = 0.9084
+09/18/2024 09:13:46 - INFO - __main__ -     eval_ap = 0.1728
+09/18/2024 09:13:46 - INFO - __main__ -     eval_f1 = 0.0
+09/18/2024 09:13:46 - INFO - __main__ -     eval_precision = 0.0
+09/18/2024 09:13:46 - INFO - __main__ -     eval_recall = 0.0
+09/18/2024 09:13:46 - INFO - __main__ -     eval_roc_auc = 0.6935
+09/18/2024 09:13:46 - INFO - __main__ -     eval_threshold = 0.5
+epoch 6 loss 0.01449: 100%|██████████| 28056/28056 [2:20:29<00:00, 39.58s/it]epoch 6 loss 0.01449: 100%|██████████| 28056/28056 [2:20:29<00:00,  3.33it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 11:31:39 - INFO - __main__ -     Num examples = 18169
+09/18/2024 11:31:39 - INFO - __main__ -     Batch size = 16
+/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/sklearn/metrics/_classification.py:1531: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+09/18/2024 11:33:48 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 11:33:48 - INFO - __main__ -     eval_accuracy = 0.9084
+09/18/2024 11:33:48 - INFO - __main__ -     eval_ap = 0.171
+09/18/2024 11:33:48 - INFO - __main__ -     eval_f1 = 0.0
+09/18/2024 11:33:48 - INFO - __main__ -     eval_precision = 0.0
+09/18/2024 11:33:48 - INFO - __main__ -     eval_recall = 0.0
+09/18/2024 11:33:48 - INFO - __main__ -     eval_roc_auc = 0.6794
+09/18/2024 11:33:48 - INFO - __main__ -     eval_threshold = 0.5
+epoch 7 loss 0.01144: 100%|██████████| 28056/28056 [2:20:01<00:00, 38.85s/it]epoch 7 loss 0.01144: 100%|██████████| 28056/28056 [2:20:01<00:00,  3.34it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 13:51:50 - INFO - __main__ -     Num examples = 18169
+09/18/2024 13:51:50 - INFO - __main__ -     Batch size = 16
+09/18/2024 13:53:59 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 13:53:59 - INFO - __main__ -     eval_accuracy = 0.9081
+09/18/2024 13:53:59 - INFO - __main__ -     eval_ap = 0.1622
+09/18/2024 13:53:59 - INFO - __main__ -     eval_f1 = 0.0048
+09/18/2024 13:53:59 - INFO - __main__ -     eval_precision = 0.3077
+09/18/2024 13:53:59 - INFO - __main__ -     eval_recall = 0.0024
+09/18/2024 13:53:59 - INFO - __main__ -     eval_roc_auc = 0.6635
+09/18/2024 13:53:59 - INFO - __main__ -     eval_threshold = 0.5
+09/18/2024 13:53:59 - INFO - __main__ -     ********************
+09/18/2024 13:53:59 - INFO - __main__ -     Best f1:0.0048
+09/18/2024 13:53:59 - INFO - __main__ -     ********************
+09/18/2024 13:54:07 - INFO - __main__ -   Saving model checkpoint to ./saved_models/checkpoint-best-f1/aug-gpt-4o_vgx-based_nonvuln_clean_15039.bin
+epoch 8 loss 0.0085: 100%|██████████| 28056/28056 [2:20:18<00:00, 41.30s/it]epoch 8 loss 0.0085: 100%|██████████| 28056/28056 [2:20:18<00:00,  3.33it/s]
+  0%|          | 0/28056 [00:00<?, ?it/s]/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 16:12:07 - INFO - __main__ -     Num examples = 18169
+09/18/2024 16:12:07 - INFO - __main__ -     Batch size = 16
+09/18/2024 16:14:15 - INFO - __main__ -   ***** Eval results *****
+09/18/2024 16:14:15 - INFO - __main__ -     eval_accuracy = 0.9085
+09/18/2024 16:14:15 - INFO - __main__ -     eval_ap = 0.1584
+09/18/2024 16:14:15 - INFO - __main__ -     eval_f1 = 0.0012
+09/18/2024 16:14:15 - INFO - __main__ -     eval_precision = 1.0
+09/18/2024 16:14:15 - INFO - __main__ -     eval_recall = 0.0006
+09/18/2024 16:14:15 - INFO - __main__ -     eval_roc_auc = 0.6627
+09/18/2024 16:14:15 - INFO - __main__ -     eval_threshold = 0.5
+epoch 9 loss 0.00657: 100%|██████████| 28056/28056 [2:20:07<00:00, 39.07s/it]epoch 9 loss 0.00657: 100%|██████████| 28056/28056 [2:20:07<00:00,  3.34it/s]
+09/18/2024 16:14:44 - INFO - __main__ -   ***** Running Test *****
+09/18/2024 16:14:44 - INFO - __main__ -     Num examples = 18169
+09/18/2024 16:14:44 - INFO - __main__ -     Batch size = 16
+/fibus/fs3/0e/cbs5650/wt/.conda/envs/vuln-synth/lib/python3.12/site-packages/torch/nn/parallel/_functions.py:68: UserWarning: Was asked to gather along dimension 0, but all input tensors were scalars; will instead unsqueeze and return a vector.
+  warnings.warn('Was asked to gather along dimension 0, but all '
+09/18/2024 16:16:56 - INFO - __main__ -   ***** Test results *****
+09/18/2024 16:16:56 - INFO - __main__ -     test_accuracy = 0.9081
+09/18/2024 16:16:56 - INFO - __main__ -     test_ap = 0.1622
+09/18/2024 16:16:56 - INFO - __main__ -     test_f1 = 0.0048
+09/18/2024 16:16:56 - INFO - __main__ -     test_precision = 0.3077
+09/18/2024 16:16:56 - INFO - __main__ -     test_recall = 0.0024
+09/18/2024 16:16:56 - INFO - __main__ -     test_roc_auc = 0.6635
+09/18/2024 16:16:56 - INFO - __main__ -     test_threshold = 0.5
+Batch 0/1136
+Batch 50/1136
+Batch 100/1136
+Batch 150/1136
+Batch 200/1136
+Batch 250/1136
+Batch 300/1136
+Batch 350/1136
+Batch 400/1136
+Batch 450/1136
+Batch 500/1136
+Batch 550/1136
+Batch 600/1136
+Batch 650/1136
+Batch 700/1136
+Batch 750/1136
+Batch 800/1136
+Batch 850/1136
+Batch 900/1136
+Batch 950/1136
+Batch 1000/1136
+Batch 1050/1136
+Batch 1100/1136

@@ -68,28 +68,15 @@ def collect_examples_from_csv(file_path: str,
 
 
 class TextDataset(Dataset):
-    def __init__(self, tokenizer, args, file_type="train"):
-        if file_type == "train":
-            file_path = args.train_data_file
-        elif file_type == "eval":
-            file_path = args.eval_data_file
-        elif file_type == "test":
-            file_path = args.test_data_file
+    def __init__(self, file_paths: list[str], tokenizer, args, file_type="train"):
+
         self.examples = []
-        collect_examples_from_csv(file_path=file_path,
-                                  examples=self.examples,
-                                  tokenizer=tokenizer,
-                                  args=args)
+        for file_path in file_paths:
+            collect_examples_from_csv(file_path=file_path,
+                                      examples=self.examples,
+                                      tokenizer=tokenizer,
+                                      args=args)
         if file_type == "train":
-
-            # Add samples to augment the training set, if any were given
-            if args.aug_train_data_files is not None:
-                for aug_train_file in args.aug_train_data_files:
-                    collect_examples_from_csv(file_path=aug_train_file,
-                                              examples=self.examples,
-                                              tokenizer=tokenizer,
-                                              args=args)
-
             for example in self.examples[:3]:
                     logger.info("*** Example ***")
                     logger.info("label: {}".format(example.label))
@@ -246,7 +233,10 @@ def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
     model.eval()
     logits=[]  
     y_trues=[]
-    for batch in eval_dataloader:
+
+    bar = tqdm(eval_dataloader,total=len(eval_dataloader))
+
+    for batch in bar:
         (inputs_ids, labels)=[x.to(args.device) for x in batch]
         with torch.no_grad():
             lm_loss, logit = model(input_ids=inputs_ids, labels=labels)
@@ -304,9 +294,9 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     model.eval()
     logits=[]  
     y_trues=[]
-    for i, batch in enumerate(test_dataloader):
-        if i % 50 == 0:
-            print(f"Batch {i}/{len(test_dataloader)}")
+    
+    bar = tqdm(test_dataloader,total=len(test_dataloader))
+    for batch in bar:
         (inputs_ids, labels) = [x.to(args.device) for x in batch]
         with torch.no_grad():
             lm_loss, logit = model(input_ids=inputs_ids, labels=labels)
@@ -340,9 +330,9 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     for key in sorted(result.keys()):
         logger.info("  %s = %s", key, str(round(result[key],4)))
 
-    logits = [l[1] for l in logits]
-    result_df = generate_result_df(logits, y_trues, y_preds, args)
-    sum_lines, sum_flaw_lines = get_line_statistics(result_df)
+    # logits = [l[1] for l in logits]
+    # result_df = generate_result_df(logits, y_trues, y_preds, args)
+    # sum_lines, sum_flaw_lines = get_line_statistics(result_df)
     
     # write raw predictions if needed
     if args.write_raw_preds:
@@ -1149,8 +1139,8 @@ def encode_one_line(line, tokenizer):
 def main():
     parser = argparse.ArgumentParser()
     ## parameters
-    parser.add_argument("--train_data_file", default=None, type=str, required=False,
-                        help="The input training data file (a csv file).")
+    parser.add_argument("--train_data_file", default=None, type=str, required=False, nargs="+",
+                        help="The input training data files (csv files).")
     parser.add_argument("--output_dir", default=None, type=str, required=False,
                         help="The output directory where the model predictions and checkpoints will be written.")
     parser.add_argument("--model_type", default="bert", type=str,
@@ -1159,9 +1149,9 @@ def main():
                         help="Optional input sequence length after tokenization."
                              "The training dataset will be truncated in block of this size for training."
                              "Default to the model max input length for single sentence inputs (take into account special tokens).")
-    parser.add_argument("--eval_data_file", default=None, type=str,
+    parser.add_argument("--eval_data_file", default=None, type=str, nargs="+",
                         help="An optional input evaluation data file to evaluate the perplexity on (a text file).")
-    parser.add_argument("--test_data_file", default=None, type=str,
+    parser.add_argument("--test_data_file", default=None, type=str, nargs="+",
                         help="An optional input evaluation data file to evaluate the perplexity on (a text file).")
     parser.add_argument("--model_name", default="model.bin", type=str,
                         help="Saved model name.") # OUTPUT model
@@ -1283,8 +1273,21 @@ def main():
     logger.info("Training/evaluation parameters %s", args)
     # Training
     if args.do_train:
-        train_dataset = TextDataset(tokenizer, args, file_type='train')
-        eval_dataset = TextDataset(tokenizer, args, file_type='eval')
+        train_file_paths = args.train_data_file
+        eval_file_paths = args.eval_data_file
+
+        logger.info("Loading Training File...")
+        train_dataset = TextDataset(file_paths=train_file_paths,
+                                    tokenizer=tokenizer, 
+                                    args=args,
+                                    file_type='train')
+        logger.info("Done.")
+        logger.info("Loading Validation File...")
+        eval_dataset = TextDataset(file_paths=eval_file_paths,
+                                   tokenizer=tokenizer,
+                                   args=args,
+                                   file_type='eval')
+        logger.info("Done. Starting Training...")
         train(args, train_dataset, model, tokenizer, eval_dataset)
     # Fine-Tuning
     if args.do_finetune:
@@ -1297,8 +1300,21 @@ def main():
         model.to(args.device)
 
         # Start training after initializing datasets
-        train_dataset = TextDataset(tokenizer, args, file_type='train')
-        eval_dataset = TextDataset(tokenizer, args, file_type='eval')
+        train_file_paths = args.train_data_file
+        eval_file_paths = args.eval_data_file
+
+        logger.info("Loading Training Files...")
+        train_dataset = TextDataset(file_paths=train_file_paths,
+                                    tokenizer=tokenizer, 
+                                    args=args,
+                                    file_type='train')
+        logger.info("Done.")
+        logger.info("Loading Validation Files...")
+        eval_dataset = TextDataset(file_paths=eval_file_paths,
+                                   tokenizer=tokenizer,
+                                   args=args,
+                                   file_type='eval')
+        logger.info("Done.")
         train(args, train_dataset, model, tokenizer, eval_dataset)
     # Evaluation
     results = {}
@@ -1307,8 +1323,19 @@ def main():
         output_dir = os.path.join(args.output_dir, '{}'.format(checkpoint_prefix))  
         model.load_state_dict(torch.load(output_dir, map_location=args.device), strict=False)
         model.to(args.device)
-        test_dataset = TextDataset(tokenizer, args, file_type='test')
-        test(args, model, tokenizer, test_dataset, best_threshold=0.5)
+
+        # Retrieve all files containing test data
+        test_file_paths = args.test_data_file
+
+        logger.info(f"Loading {len(test_file_paths)} Files of Test Data...")
+        test_datasets = [TextDataset(file_paths=[test_file_path],
+                                     tokenizer=tokenizer,
+                                     args=args,
+                                     file_type='test') for test_file_path in test_file_paths]
+
+        # Test on each test dataset independently 
+        for test_dataset in test_datasets:
+            test(args, model, tokenizer, test_dataset, best_threshold=0.5)
     return results
 
 if __name__ == "__main__":

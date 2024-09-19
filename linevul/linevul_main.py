@@ -147,6 +147,9 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
     if args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
 
+    # Directory where the checkpoints should be saved
+    checkpoint_dir = os.path.join(args.output_dir, "checkpoints")
+
     # Train!
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
@@ -196,25 +199,45 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                 avg_loss=round(np.exp((tr_loss - logging_loss) /(global_step- tr_nb)),4)
 
                 if global_step % args.save_steps == 0:
-                    results = evaluate(args, model, tokenizer, eval_dataset, eval_when_training=True)    
+                    results = evaluate(args, model, tokenizer, eval_dataset, epoch=idx, eval_when_training=True)    
                     
                     # Save model checkpoint
-                    if results['eval_f1']>best_f1:
-                        best_f1=results['eval_f1']
-                        logger.info("  "+"*"*20)  
-                        logger.info("  Best f1:%s",round(best_f1,4))
-                        logger.info("  "+"*"*20)                          
-                        
-                        checkpoint_prefix = 'checkpoint-best-f1'
-                        output_dir = os.path.join(args.output_dir, '{}'.format(checkpoint_prefix))                        
-                        if not os.path.exists(output_dir):
-                            os.makedirs(output_dir)                        
+                    # TODO Maybe use a different metric to determine which model was best 19.09.2024, 21:32 (Thu)
+                    if not args.only_save_best or idx == 0 or results['eval_f1']>best_f1:
+
                         model_to_save = model.module if hasattr(model,'module') else model
-                        output_dir = os.path.join(output_dir, '{}'.format(args.model_name)) 
-                        torch.save(model_to_save.state_dict(), output_dir)
-                        logger.info("Saving model checkpoint to %s", output_dir)
+
+                        model_file_name = f"{idx}_{args.model_name}" 
                         
-def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
+                        if not os.path.exists(checkpoint_dir):
+                            os.makedirs(checkpoint_dir)                        
+
+                        output_path = os.path.join(checkpoint_dir, model_file_name)
+
+                        torch.save(model_to_save.state_dict(), output_path)
+                        logger.info("Saving model checkpoint to %s", output_path)
+
+                        
+                        # Determine whether the result was a new best model
+                        if results["eval_f1"] > best_f1:
+
+                            # Update new best F1 Score
+                            best_f1=results['eval_f1']
+
+                            logger.info("  "+"*"*20)  
+                            logger.info("  Best f1:%s",round(best_f1,4))
+                            logger.info("  "+"*"*20)                          
+
+                            # Path where the best model should be stored
+                            best_model_file_name = f"best_{args.model_name}"
+                            best_output_path = os.path.join(checkpoint_dir, best_model_file_name)
+
+                            # Save model
+                            torch.save(model_to_save.state_dict(), best_output_path)
+                            logger.info("Saving BEST model checkpoint to %s", best_output_path)
+
+                        
+def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_training=False):
     #build dataloader
     eval_sampler = SequentialSampler(eval_dataset)
     eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler,batch_size=args.eval_batch_size,num_workers=0)
@@ -268,7 +291,12 @@ def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
     }
 
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name='LineVul')
-    plt.savefig(f'eval_precision_recall_{args.model_name}.pdf')
+
+    if not os.path.exists(args.plot_dir):
+        os.makedirs(args.plot_dir)
+
+    figure_path = os.path.join(args.plot_dir, f"{epoch}_eval_precision_recall.pdf")
+    plt.savefig(figure_path)
 
     logger.info("***** Eval results *****")
     for key in sorted(result.keys()):
@@ -324,7 +352,12 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         "test_ap":ap
     }
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name="LineVul")
-    plt.savefig(f'test_precision_recall_{args.model_name}.pdf')
+
+    if not os.path.exists(args.plot_dir):
+        os.makedirs(args.plot_dir)
+
+    figure_path = os.path.join(args.plot_dir, f"test_precision_recall.pdf")
+    plt.savefig(figure_path)
 
     logger.info("***** Test results *****")
     for key in sorted(result.keys()):
@@ -1236,8 +1269,10 @@ def main():
     parser.add_argument("--do_finetune", action="store_true",
                         help="Whether to run fine-tuning")
 
-    parser.add_argument("--aug_train_data_files", default=None, type=str, nargs="*", required=False,
-                        help="Input data files for augmenting the training data with vulnerable samples (CSV files).")
+    parser.add_argument("--only_save_best",
+                        action="store_true",
+                        default=False,
+                        help="When this flag is set, only save the best model, instead of saving the models from all epochs.")
 
     args = parser.parse_args()
     # Setup Device
@@ -1249,6 +1284,10 @@ def main():
         device = "cpu"
     args.n_gpu = torch.cuda.device_count()
     args.device = device
+
+    # Deduce directory where plots should be stored
+    args.plot_dir = os.path.join(args.output_dir, "plots")
+
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',datefmt='%m/%d/%Y %H:%M:%S',level=logging.INFO)
     logger.warning("device: %s, n_gpu: %s",device, args.n_gpu,)
@@ -1319,9 +1358,11 @@ def main():
     # Evaluation
     results = {}
     if args.do_test:
-        checkpoint_prefix = f'checkpoint-best-f1/{args.model_name}'
-        output_dir = os.path.join(args.output_dir, '{}'.format(checkpoint_prefix))  
-        model.load_state_dict(torch.load(output_dir, map_location=args.device), strict=False)
+        # Deduce path of the best model
+        model_path = os.path.join(args.output_dir, "checkpoints", f"best_{args.model_name}")
+
+        # Load model
+        model.load_state_dict(torch.load(model_path, map_location=args.device), strict=False)
         model.to(args.device)
 
         # Retrieve all files containing test data
@@ -1334,7 +1375,8 @@ def main():
                                      file_type='test') for test_file_path in test_file_paths]
 
         # Test on each test dataset independently 
-        for test_dataset in test_datasets:
+        for test_file_path, test_dataset in zip(test_file_paths, test_datasets):
+            print(f"Testing on File {test_file_path}")
             test(args, model, tokenizer, test_dataset, best_threshold=0.5)
     return results
 

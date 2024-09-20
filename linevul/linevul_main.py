@@ -40,6 +40,7 @@ import matplotlib.pyplot as plt
 from captum.attr import LayerIntegratedGradients, DeepLift, DeepLiftShap, GradientShap, Saliency
 # word-level tokenizer
 from tokenizers import Tokenizer
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -169,10 +170,21 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
         bar = tqdm(train_dataloader,total=len(train_dataloader))
         tr_num = 0
         train_loss = 0
+
+        # List containing all labels
+        all_labels = []
+
+        # List containing the logits of all batches
+        all_logits = []
+
         for step, batch in enumerate(bar):
             (inputs_ids, labels) = [x.to(args.device) for x in batch]
             model.train()
             loss, logits = model(input_ids=inputs_ids, labels=labels)
+
+            all_labels.append(labels.detach().cpu().numpy())
+            all_logits.append(logits.detach().cpu().numpy())
+
             if args.n_gpu > 1:
                 loss = loss.mean()
             if args.gradient_accumulation_steps > 1:
@@ -182,7 +194,10 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
             tr_loss += loss.item()
+
+            # Count the number of batches processed so far
             tr_num += 1
+
             train_loss += loss.item()
             if avg_loss == 0:
                 avg_loss = tr_loss
@@ -196,14 +211,31 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                 scheduler.step()  
                 global_step += 1
                 output_flag=True
-                avg_loss=round(np.exp((tr_loss - logging_loss) /(global_step- tr_nb)),4)
 
                 if global_step % args.save_steps == 0:
-                    results = evaluate(args, model, tokenizer, eval_dataset, epoch=idx, eval_when_training=True)    
+                    eval_results = evaluate(args, model, tokenizer, eval_dataset, epoch=idx, eval_when_training=True)    
+
+                    # Obtain numpy arrays of the logits and labels for all training batches
+                    logits = np.concatenate(all_logits, 0)
+                    y_trues = np.concatenate(all_labels, 0)
+
+                    # Compute train metrics
+                    roc_auc = roc_auc_score(y_trues, logits[:, 1])
+                    ap = average_precision_score(y_trues, logits[:, 1])
+
+                    train_results = {
+                            "train/avg_loss": avg_loss,
+                            "train/last_batch_loss": loss.item(),
+                            "train/roc_auc": roc_auc,
+                            "train/ap": ap,
+                            }
+
+                    all_results = eval_results | train_results
+                    wandb.log(data=all_results)
                     
                     # Save model checkpoint
                     # TODO Maybe use a different metric to determine which model was best 19.09.2024, 21:32 (Thu)
-                    if not args.only_save_best or idx == 0 or results['eval_f1']>best_f1:
+                    if not args.only_save_best or idx == 0 or eval_results['eval/f1']>best_f1:
 
                         model_to_save = model.module if hasattr(model,'module') else model
 
@@ -217,12 +249,11 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                         torch.save(model_to_save.state_dict(), output_path)
                         logger.info("Saving model checkpoint to %s", output_path)
 
-                        
                         # Determine whether the result was a new best model
-                        if results["eval_f1"] > best_f1:
+                        if eval_results["eval/f1"] > best_f1:
 
                             # Update new best F1 Score
-                            best_f1=results['eval_f1']
+                            best_f1=eval_results['eval/f1']
 
                             logger.info("  "+"*"*20)  
                             logger.info("  Best f1:%s",round(best_f1,4))
@@ -267,6 +298,9 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
             logits.append(logit.cpu().numpy())
             y_trues.append(labels.cpu().numpy())
         nb_eval_steps += 1
+
+    # Compute average loss
+    avg_eval_loss = eval_loss / len(eval_dataloader)
     
     #calculate scores
     logits = np.concatenate(logits,0)
@@ -281,13 +315,14 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
     roc_auc = roc_auc_score(y_trues, logits[:, 1])
     ap = average_precision_score(y_trues, logits[:, 1])
     result = {
-        "eval_accuracy": float(acc),
-        "eval_recall": float(recall),
-        "eval_precision": float(precision),
-        "eval_f1": float(f1),
-        "eval_threshold":best_threshold,
-        "eval_roc_auc":roc_auc,
-        "eval_ap":ap
+        "eval/avg_loss": avg_eval_loss,
+        "eval/accuracy": float(acc),
+        "eval/recall": float(recall),
+        "eval/precision": float(precision),
+        "eval/f1": float(f1),
+        "eval/threshold":best_threshold,
+        "eval/roc_auc":roc_auc,
+        "eval/ap":ap
     }
 
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name='LineVul')
@@ -343,14 +378,17 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     roc_auc = roc_auc_score(y_trues, logits[:, 1])
     ap = average_precision_score(y_trues, logits[:, 1])
     result = {
-        "test_accuracy": float(acc),
-        "test_recall": float(recall),
-        "test_precision": float(precision),
-        "test_f1": float(f1),
-        "test_threshold":best_threshold,
-        "test_roc_auc":roc_auc,
-        "test_ap":ap
+        "test/accuracy": float(acc),
+        "test/recall": float(recall),
+        "test/precision": float(precision),
+        "test/f1": float(f1),
+        "test/threshold":best_threshold,
+        "test/roc_auc":roc_auc,
+        "test/ap":ap
     }
+
+    wandb.log(result)
+
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name="LineVul")
 
     if not os.path.exists(args.plot_dir):
@@ -1288,6 +1326,9 @@ def main():
     # Deduce directory where plots should be stored
     args.plot_dir = os.path.join(args.output_dir, "plots")
 
+    # Setup WandB
+    wandb.init(project="avs")
+
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',datefmt='%m/%d/%Y %H:%M:%S',level=logging.INFO)
     logger.warning("device: %s, n_gpu: %s",device, args.n_gpu,)
@@ -1378,6 +1419,10 @@ def main():
         for test_file_path, test_dataset in zip(test_file_paths, test_datasets):
             print(f"Testing on File {test_file_path}")
             test(args, model, tokenizer, test_dataset, best_threshold=0.5)
+
+    # Shut down WandB
+    wandb.finish()
+
     return results
 
 if __name__ == "__main__":

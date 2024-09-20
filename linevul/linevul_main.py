@@ -33,7 +33,7 @@ import multiprocessing
 from linevul_model import Model
 import pandas as pd
 # metrics
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, PrecisionRecallDisplay, average_precision_score, roc_auc_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, PrecisionRecallDisplay, average_precision_score, roc_auc_score, precision_recall_curve
 from sklearn.metrics import auc
 import matplotlib.pyplot as plt
 # model reasoning
@@ -41,6 +41,7 @@ from captum.attr import LayerIntegratedGradients, DeepLift, DeepLiftShap, Gradie
 # word-level tokenizer
 from tokenizers import Tokenizer
 import wandb
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,23 @@ def set_seed(args):
     torch.manual_seed(args.seed)
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
+
+def get_best_threshold(y_trues: np.array, predicted_probas: np.array) -> float:
+    """
+    Computes the threshold that maximizes the F1 score for a given array of predictions and corresponding predicted probabilities.
+
+    Credit: https://stackoverflow.com/a/66549018
+    """
+    precision, recall, thresholds = precision_recall_curve(y_trues, predicted_probas)
+    numerator = 2 * recall * precision
+    denom = recall + precision
+    f1_scores = np.divide(numerator, denom, out=np.zeros_like(denom), where=(denom!=0))
+    
+    # This is how the maximum F1 Value could be determined
+    # max_f1 = np.max(f1_scores)
+
+    max_f1_thresh = thresholds[np.argmax(f1_scores)]
+    return max_f1_thresh
 
 def train(args, train_dataset, model, tokenizer, eval_dataset):
     """ Train the model """
@@ -255,6 +273,21 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                             # Update new best F1 Score
                             best_f1=eval_results['eval/f1']
 
+                            # Store the threshold for testing
+                            args.threshold_for_testing = eval_results["eval/threshold"]
+
+                            # Log the new best results to WandB
+                            wandb.run.summary["best/threshold"] = eval_results["eval/threshold"]
+                            wandb.run.summary["best/epoch"] = idx
+
+                            wandb.run.summary["best/eval/f1"] = best_f1
+                            wandb.run.summary["best/eval/ap"] = eval_results["eval/ap"]
+                            wandb.run.summary["best/eval/roc_auc"] = eval_results["eval/roc_auc"]
+                            wandb.run.summary["best/eval/precision"] = eval_results["eval/precision"]
+                            wandb.run.summary["best/eval/recall"] = eval_results["eval/recall"]
+                            wandb.run.summary["best/eval/accuracy"] = eval_results["eval/accuracy"]
+                            wandb.run.summary["best/eval/avg_loss"] = eval_results["eval/avg_loss"]
+
                             logger.info("  "+"*"*20)  
                             logger.info("  Best f1:%s",round(best_f1,4))
                             logger.info("  "+"*"*20)                          
@@ -305,8 +338,12 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
     #calculate scores
     logits = np.concatenate(logits,0)
     y_trues = np.concatenate(y_trues,0)
-    best_threshold = 0.5
-    best_f1 = 0
+    if args.use_fixed_threshold:
+        best_threshold = 0.5
+    else:
+        # Determine the best threshold using the precision-recall curve
+        best_threshold = get_best_threshold(y_trues=y_trues,
+                                            predicted_probas=logits[:, 1])
     y_preds = logits[:,1]>best_threshold
     acc = accuracy_score(y_trues, y_preds)
     recall = recall_score(y_trues, y_preds)
@@ -387,8 +424,6 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         "test/ap":ap
     }
 
-    wandb.log(result)
-
     PrecisionRecallDisplay.from_predictions(y_trues, logits[:, 1], name="LineVul")
 
     if not os.path.exists(args.plot_dir):
@@ -404,6 +439,9 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     # logits = [l[1] for l in logits]
     # result_df = generate_result_df(logits, y_trues, y_preds, args)
     # sum_lines, sum_flaw_lines = get_line_statistics(result_df)
+
+    # Return the testing results
+    return result
     
     # write raw predictions if needed
     if args.write_raw_preds:
@@ -1311,6 +1349,14 @@ def main():
                         action="store_true",
                         default=False,
                         help="When this flag is set, only save the best model, instead of saving the models from all epochs.")
+    parser.add_argument("--use_fixed_threshold",
+                        action="store_true",
+                        default=False,
+                        help="Use a fixed decision threshold on the logits, instead of determining the best one from the precision-recall curve.")
+    parser.add_argument("--threshold_for_testing",
+                        type=float,
+                        required=False,
+                        help="Threshold that should be used for testing. When training the model with the same invocation, this argument is ignored and automatically determined during training.")
 
     args = parser.parse_args()
     # Setup Device
@@ -1399,6 +1445,10 @@ def main():
     # Evaluation
     results = {}
     if args.do_test:
+
+        if args.threshold_for_testing is None:
+            raise ValueError("--threshold_for_testing unspecified! Must specify a threshold for assigning predicted probabilities to labels.")
+
         # Deduce path of the best model
         model_path = os.path.join(args.output_dir, "checkpoints", f"best_{args.model_name}")
 
@@ -1417,8 +1467,22 @@ def main():
 
         # Test on each test dataset independently 
         for test_file_path, test_dataset in zip(test_file_paths, test_datasets):
+
+            pathlib_test_file_path = Path(test_file_path)
+
+            # Use name of the test file and its parent directory as a brief description
+            test_file_descr = pathlib_test_file_path.parent.name + "/" + pathlib_test_file_path.name
+
             print(f"Testing on File {test_file_path}")
-            test(args, model, tokenizer, test_dataset, best_threshold=0.5)
+            test_results = test(args,
+                                model,
+                                tokenizer,
+                                test_dataset,
+                                best_threshold=args.threshold_for_testing)
+
+            # Store the results to the summary of the WandB run
+            for key, value in test_results.items():
+                wandb.run.summary[f"best/test/{test_file_descr}/{key.split('/')[-1]}"] = value
 
     # Shut down WandB
     wandb.finish()

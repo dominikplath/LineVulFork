@@ -7,7 +7,7 @@ log_file_path=../output/test/gpt-4o_sanity_check.log
 train_data_file='../data/gpt-4o/vuln/val.csv ../data/big-vul_dataset/val_small.csv'
 test_data_file='../data/big-vul_dataset/val_small.csv ../data/big-vul_dataset/val_small.csv'
 
-epochs=2
+epochs=1
 
 cd linevul
 python -u linevul_main.py \

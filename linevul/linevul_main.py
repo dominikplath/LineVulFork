@@ -237,11 +237,31 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                     logits = np.concatenate(all_logits, 0)
                     y_trues = np.concatenate(all_labels, 0)
 
+                    # Deduce predicted probabilities from the logits
+                    predicted_probas = logits[:, 1]
+
                     # Compute train metrics
                     roc_auc = roc_auc_score(y_trues, logits[:, 1])
                     ap = average_precision_score(y_trues, logits[:, 1])
 
+                    # Compute threshold-based metrics, using the threshold established on the validation step
+                    y_preds = predicted_probas>eval_results["eval/threshold"]
+                    acc = accuracy_score(y_trues, y_preds)
+                    recall = recall_score(y_trues, y_preds)
+                    precision = precision_score(y_trues, y_preds)   
+                    f1 = f1_score(y_trues, y_preds)             
+                    # Compute the F1 score when using a fixed threshold of 0.5
+                    fixed_threshold_f1 = f1_score(y_trues, predicted_probas>0.5)
+
+                    roc_auc = roc_auc_score(y_trues, predicted_probas)
+                    ap = average_precision_score(y_trues, predicted_probas)
+
                     train_results = {
+                            "train/accuracy": float(acc),
+                            "train/recall": float(recall),
+                            "train/precision": float(precision),
+                            "train/f1": float(f1),
+                            "train/fixed_threshold_f1": float(fixed_threshold_f1),
                             "train/avg_loss": avg_loss,
                             "train/last_batch_loss": loss.item(),
                             "train/roc_auc": roc_auc,
@@ -268,7 +288,7 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                         logger.info("Saving model checkpoint to %s", output_path)
 
                         # Determine whether the result was a new best model
-                        if eval_results["eval/f1"] > best_f1:
+                        if eval_results["eval/f1"] > best_f1 or idx == 0:
 
                             # Update new best F1 Score
                             best_f1=eval_results['eval/f1']
@@ -276,17 +296,10 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                             # Store the threshold for testing
                             args.threshold_for_testing = eval_results["eval/threshold"]
 
-                            # Log the new best results to WandB
-                            wandb.run.summary["best/threshold"] = eval_results["eval/threshold"]
+                            # Add the observed best results to the WandB summary
                             wandb.run.summary["best/epoch"] = idx
-
-                            wandb.run.summary["best/eval/f1"] = best_f1
-                            wandb.run.summary["best/eval/ap"] = eval_results["eval/ap"]
-                            wandb.run.summary["best/eval/roc_auc"] = eval_results["eval/roc_auc"]
-                            wandb.run.summary["best/eval/precision"] = eval_results["eval/precision"]
-                            wandb.run.summary["best/eval/recall"] = eval_results["eval/recall"]
-                            wandb.run.summary["best/eval/accuracy"] = eval_results["eval/accuracy"]
-                            wandb.run.summary["best/eval/avg_loss"] = eval_results["eval/avg_loss"]
+                            for key, value in all_results.items():
+                                wandb.run.summary[f"best/{key}"] = value
 
                             logger.info("  "+"*"*20)  
                             logger.info("  Best f1:%s",round(best_f1,4))
@@ -349,6 +362,8 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
     recall = recall_score(y_trues, y_preds)
     precision = precision_score(y_trues, y_preds)   
     f1 = f1_score(y_trues, y_preds)             
+    # Compute the F1 score when using a fixed threshold of 0.5
+    fixed_threshold_f1 = f1_score(y_trues, logits[:,1]>0.5)
     roc_auc = roc_auc_score(y_trues, logits[:, 1])
     ap = average_precision_score(y_trues, logits[:, 1])
     result = {
@@ -357,6 +372,7 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
         "eval/recall": float(recall),
         "eval/precision": float(precision),
         "eval/f1": float(f1),
+        "eval/fixed_threshold_f1": float(fixed_threshold_f1),
         "eval/threshold":best_threshold,
         "eval/roc_auc":roc_auc,
         "eval/ap":ap
@@ -412,6 +428,8 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     recall = recall_score(y_trues, y_preds)
     precision = precision_score(y_trues, y_preds)   
     f1 = f1_score(y_trues, y_preds)             
+    # Compute the F1 score when using a fixed threshold of 0.5
+    fixed_threshold_f1 = f1_score(y_trues, logits[:,1]>0.5)
     roc_auc = roc_auc_score(y_trues, logits[:, 1])
     ap = average_precision_score(y_trues, logits[:, 1])
     result = {
@@ -419,6 +437,7 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         "test/recall": float(recall),
         "test/precision": float(precision),
         "test/f1": float(f1),
+        "test/fixed_threshold_f1": float(fixed_threshold_f1),
         "test/threshold":best_threshold,
         "test/roc_auc":roc_auc,
         "test/ap":ap
@@ -1357,6 +1376,14 @@ def main():
                         type=float,
                         required=False,
                         help="Threshold that should be used for testing. When training the model with the same invocation, this argument is ignored and automatically determined during training.")
+    parser.add_argument("--wandb_name",
+                        type=str,
+                        required=False,
+                        help="Name to use for the W&B run")
+    parser.add_argument("--wandb_notes",
+                        type=str,
+                        required=False,
+                        help="Brief summary of the run for W&B")
 
     args = parser.parse_args()
     # Setup Device
@@ -1373,7 +1400,16 @@ def main():
     args.plot_dir = os.path.join(args.output_dir, "plots")
 
     # Setup WandB
-    wandb.init(project="avs")
+    wandb.init(project="avs",
+               name=args.wandb_name,
+               notes=args.wandb_notes,
+               config={
+                   "train_files": args.train_data_file,
+                   "eval_files": args.eval_data_file,
+                   "test_files": args.test_data_file,
+                   "output_dir": args.output_dir,
+                   "model_name": args.model_name,
+               })
 
     # Setup logging
     logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s -   %(message)s',datefmt='%m/%d/%Y %H:%M:%S',level=logging.INFO)

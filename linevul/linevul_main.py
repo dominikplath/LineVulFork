@@ -410,7 +410,7 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     model.eval()
     logits=[]  
     y_trues=[]
-    
+
     bar = tqdm(test_dataloader,total=len(test_dataloader))
     for batch in bar:
         (inputs_ids, labels) = [x.to(args.device) for x in batch]
@@ -423,6 +423,12 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     # calculate scores
     logits = np.concatenate(logits, 0)
     y_trues = np.concatenate(y_trues, 0)
+
+    # Deduce best threshold on the test set, if the CLI option was set accordingly
+    if best_threshold == "deduce":
+        best_threshold = get_best_threshold(y_trues=y_trues,
+                                            predicted_probas=logits[:, 1])
+    
     y_preds = logits[:, 1] > best_threshold
     acc = accuracy_score(y_trues, y_preds)
     recall = recall_score(y_trues, y_preds)
@@ -1373,9 +1379,8 @@ def main():
                         default=False,
                         help="Use a fixed decision threshold on the logits, instead of determining the best one from the precision-recall curve.")
     parser.add_argument("--threshold_for_testing",
-                        type=float,
                         required=False,
-                        help="Threshold that should be used for testing. When training the model with the same invocation, this argument is ignored and automatically determined during training.")
+                        help="Threshold that should be used for testing. When training the model with the same invocation, this argument is ignored and automatically determined during training. Set to 'deduce' in order to deduce the best threshold for the test set.")
     parser.add_argument("--wandb_name",
                         type=str,
                         required=False,
@@ -1483,7 +1488,7 @@ def main():
     if args.do_test:
 
         if args.threshold_for_testing is None:
-            raise ValueError("--threshold_for_testing unspecified! Must specify a threshold for assigning predicted probabilities to labels.")
+            raise ValueError("--threshold_for_testing unspecified! Must specify a threshold for assigning predicted probabilities to labels or deduce it from the test set by specifying 'deduce'.")
 
         # Deduce path of the best model
         model_path = os.path.join(args.output_dir, "checkpoints", f"best_{args.model_name}")

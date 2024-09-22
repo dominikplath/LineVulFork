@@ -252,6 +252,8 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                     f1 = f1_score(y_trues, y_preds)             
                     # Compute the F1 score when using a fixed threshold of 0.5
                     fixed_threshold_f1 = f1_score(y_trues, predicted_probas>0.5)
+                    fixed_threshold_recall = recall_score(y_trues, logits[:,1]>0.5)
+                    fixed_threshold_precision = precision_score(y_trues, logits[:,1]>0.5)
 
                     roc_auc = roc_auc_score(y_trues, predicted_probas)
                     ap = average_precision_score(y_trues, predicted_probas)
@@ -262,6 +264,8 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                             "train/precision": float(precision),
                             "train/f1": float(f1),
                             "train/fixed_threshold_f1": float(fixed_threshold_f1),
+                            "train/fixed_threshold_recall": float(fixed_threshold_recall),
+                            "train/fixed_threshold_precision": float(fixed_threshold_precision),
                             "train/avg_loss": avg_loss,
                             "train/last_batch_loss": loss.item(),
                             "train/roc_auc": roc_auc,
@@ -364,6 +368,8 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
     f1 = f1_score(y_trues, y_preds)             
     # Compute the F1 score when using a fixed threshold of 0.5
     fixed_threshold_f1 = f1_score(y_trues, logits[:,1]>0.5)
+    fixed_threshold_recall = recall_score(y_trues, logits[:,1]>0.5)
+    fixed_threshold_precision = precision_score(y_trues, logits[:,1]>0.5)
     roc_auc = roc_auc_score(y_trues, logits[:, 1])
     ap = average_precision_score(y_trues, logits[:, 1])
     result = {
@@ -373,6 +379,8 @@ def evaluate(args, model, tokenizer, eval_dataset, epoch: int, eval_when_trainin
         "eval/precision": float(precision),
         "eval/f1": float(f1),
         "eval/fixed_threshold_f1": float(fixed_threshold_f1),
+        "eval/fixed_threshold_recall": float(fixed_threshold_recall),
+        "eval/fixed_threshold_precision": float(fixed_threshold_precision),
         "eval/threshold":best_threshold,
         "eval/roc_auc":roc_auc,
         "eval/ap":ap
@@ -436,6 +444,8 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
     f1 = f1_score(y_trues, y_preds)             
     # Compute the F1 score when using a fixed threshold of 0.5
     fixed_threshold_f1 = f1_score(y_trues, logits[:,1]>0.5)
+    fixed_threshold_recall = recall_score(y_trues, logits[:,1]>0.5)
+    fixed_threshold_precision = precision_score(y_trues, logits[:,1]>0.5)
     roc_auc = roc_auc_score(y_trues, logits[:, 1])
     ap = average_precision_score(y_trues, logits[:, 1])
     result = {
@@ -444,6 +454,8 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         "test/precision": float(precision),
         "test/f1": float(f1),
         "test/fixed_threshold_f1": float(fixed_threshold_f1),
+        "test/fixed_threshold_recall": float(fixed_threshold_recall),
+        "test/fixed_threshold_precision": float(fixed_threshold_precision),
         "test/threshold":best_threshold,
         "test/roc_auc":roc_auc,
         "test/ap":ap

@@ -72,12 +72,18 @@ def collect_examples_from_csv(file_path: str,
 class TextDataset(Dataset):
     def __init__(self, file_paths: list[str], tokenizer, args, file_type="train"):
 
+        logger.info(f"Initializing dataset for '{file_type}' partition...")
+
         self.examples = []
         for file_path in file_paths:
+            logger.info(f"Loading samples from file '{file_path}'...")
             collect_examples_from_csv(file_path=file_path,
                                       examples=self.examples,
                                       tokenizer=tokenizer,
                                       args=args)
+
+        logger.info(f"Loaded {len(self.examples)} many overall samples.")
+
         if file_type == "train":
             for example in self.examples[:3]:
                     logger.info("*** Example ***")

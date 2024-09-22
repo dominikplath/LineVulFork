@@ -50,7 +50,7 @@ ours_test=${ours_dir}/${test_csv_name}
 ours_full=${ours_dir}/${full_csv_name}
 
 # Path to the ReVeal test file
-reveal_test=${reveal_dir}
+reveal_test=${reveal_dir}/${test_csv_name}
 
 train_datasets=(
 	"${big_vul_train}"
@@ -126,29 +126,22 @@ test_datasets=(
 
 model_name=model.bin
 
-# Define output directories
-base_output_dir=../artefacts/aug-codellama-34b/comparison
-output_dirs=(
-	"${base_output_dir}/big-vul"
-	"${base_output_dir}/vgx"
-	"${base_output_dir}/codellama-34b"
-	"${base_output_dir}/big-vul_vgx"
-	"${base_output_dir}/big-vul_codellama-34b"
-	"${base_output_dir}/vgx_codellama-34b"
-	"${base_output_dir}/big-vul_vgx_codellama-34b"
+# Define W&B names
+wandb_names=(
+	"big-vul"
+	"vgx"
+	"codellama-34b"
+	"big-vul_vgx"
+	"big-vul_codellama-34b"
+	"vgx_codellama-34b"
+	"big-vul_vgx_codellama-34b"
 )
 
-# Define W&B names
+# Define base output directory
+base_output_dir=../artefacts/aug-codellama-34b/comparison
+
+# Define base name of W&B runs
 base_wandb_name="comparison"
-wandb_names=(
-	"${base_wandb_name}/big-vul"
-	"${base_wandb_name}/vgx"
-	"${base_wandb_name}/codellama-34b"
-	"${base_wandb_name}/big-vul_vgx"
-	"${base_wandb_name}/big-vul_codellama-34b"
-	"${base_wandb_name}/vgx_codellama-34b"
-	"${base_wandb_name}/big-vul_vgx_codellama-34b"
-)
 
 # Define W&B notes
 wandb_note="One of the runs that train LineVul with various training sets. Dynamically determines the decision threshold on the validation set. Tested on independent data, using a split-off portion for those datasets that are contained in training, and the full dataset for those that are not. Also tests on the VGX-provided ReVeal test set. Refer to the run name for the datasets included in the training set."
@@ -157,13 +150,8 @@ cd linevul
 
 for (( idx=0 ; idx < ${#train_datasets[@]} ; idx++ ))
 do
-	echo Train:
-	ls ${train_datasets[idx]}
-	echo Val:
-	ls ${val_datasets[idx]}
-	echo Test:
-	ls ${test_datasets[idx]}
-	echo ============================
+	full_wandb_name="${base_wandb_name}/${wandb_names[idx]}"
+	output_dir="${base_output_dir}/${wandb_names[idx]}"
 
 	echo python linevul_main.py \
 		--model_name=$model_name \
@@ -184,7 +172,7 @@ do
 		--learning_rate 2e-5 \
 		--max_grad_norm 1.0 \
 		--evaluate_during_training \
-		--wandb_name "${wandb_names[idx]}" \
+		--wandb_name "${full_wandb_name}" \
 		--wandb_notes "${wandb_note}" \
 		--seed 123456  2>&1
 

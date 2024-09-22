@@ -153,7 +153,7 @@ do
 	full_wandb_name="${base_wandb_name}/${wandb_names[idx]}"
 	output_dir="${base_output_dir}/${wandb_names[idx]}"
 
-	echo python linevul_main.py \
+	python linevul_main.py \
 		--model_name=$model_name \
 		--output_dir=$output_dir \
 		--model_type=roberta \

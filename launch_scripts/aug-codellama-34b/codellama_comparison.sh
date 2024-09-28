@@ -4,7 +4,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=dominik.plath@tuhh.de
 
-#SBATCH --time 14-23:00:00
+#SBATCH --time 6-23:00:00
 #SBATCH --gres gpu:2
 #SBATCH --mem-per-gpu 75000
 # TODO: CHANGE BEFORE RUNNING COPY-PASTED LAUNCH SCRIPT

@@ -51,6 +51,8 @@ ours_full=${ours_dir}/${full_csv_name}
 
 # Path to the ReVeal test file
 reveal_test=${reveal_dir}/${test_csv_name}
+# Path to the CodeLlama file for testing
+codellama_full=../data/codellama-34b/full.csv
 
 train_datasets=(
 	"${ours_train}"
@@ -135,7 +137,7 @@ do
 		--do_test \
 		--train_data_file ${train_datasets[idx]} \
 		--eval_data_file ${val_datasets[idx]} \
-		--test_data_file ${test_datasets[idx]} ${reveal_test} \
+		--test_data_file ${test_datasets[idx]} ${reveal_test} ${codellama_full} \
 		--epochs 10 \
 		--block_size 512 \
 		--train_batch_size 16 \

@@ -1508,6 +1508,10 @@ def main():
         if args.threshold_for_testing is None:
             raise ValueError("--threshold_for_testing unspecified! Must specify a threshold for assigning predicted probabilities to labels or deduce it from the test set by specifying 'deduce'.")
 
+        if args.threshold_for_testing != "deduce":
+            # Parse string to float
+            args.threshold_for_testing = float(args.threshold_for_testing)
+
         # Deduce path of the best model
         model_path = os.path.join(args.output_dir, "checkpoints", f"best_{args.model_name}")
 

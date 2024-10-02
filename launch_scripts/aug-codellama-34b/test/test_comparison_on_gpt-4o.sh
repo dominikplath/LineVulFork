@@ -60,7 +60,7 @@ for (( idx=0 ; idx < ${#wandb_names[@]} ; idx++ ))
 do
 	full_wandb_name="${base_wandb_name}/${wandb_names[idx]}"
 	output_dir="${base_output_dir}/${wandb_names[idx]}"
-	thresholds="${thresholds[idx]}"
+	threshold="${thresholds[idx]}"
 
 	python linevul_main.py \
 		--model_name=$model_name \
@@ -77,6 +77,7 @@ do
 		--learning_rate 2e-5 \
 		--max_grad_norm 1.0 \
 		--evaluate_during_training \
+		--threshold_for_testing ${threshold} \
 		--wandb_name "${full_wandb_name}" \
 		--wandb_notes "${wandb_note}" \
 		--seed 123456  2>&1
